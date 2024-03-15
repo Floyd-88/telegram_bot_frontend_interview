@@ -1,7 +1,13 @@
 import "dotenv/config";
-import { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } from "grammy";
-import { getRandomQuestions } from "./utils.js";
+import { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, session } from "grammy";
+import { getRandomQuestions, getCorrectAnswer } from "./utils.js";
 const bot = new Bot(process.env.BOT_API_KEY);
+
+function initial() {
+    return { randomIndex: null };
+  }
+
+  bot.use(session({ initial }));
 
 //событие срабатывает при старте бота
 bot.command("start", async (ctx) => {
@@ -11,6 +17,8 @@ bot.command("start", async (ctx) => {
     .row()
     .text("JavaScript")
     .text("Vue")
+    .row()
+    .text("Случайный вопрос")
     .resized();
 
   await ctx.reply(
@@ -26,17 +34,15 @@ bot.command("start", async (ctx) => {
 
 //выбор кнопки с темой
 bot.hears(["HTML", "CSS", "JavaScript", "Vue"], async (ctx) => {
-  const thema = ctx.message.text.toLowerCase();
-  const question = getRandomQuestions(thema);
+  const question = getRandomQuestions(ctx);
   let inlineKeyboard;
-
   //если вопрос с вариантами ответов - отразить их
-  if (question.hasOptions) {
+  if (question?.hasOptions) {
     const buttonRow = question.options.map((i) => InlineKeyboard.text(
           i.text,
           JSON.stringify({
-            type: `${thema}-option`,
-            questionId: i.id,
+            type: `${question?.type}-option`,
+            questionId: question?.id,
             isCorrect: i.isCorrect,
           })
         ),
@@ -46,29 +52,33 @@ bot.hears(["HTML", "CSS", "JavaScript", "Vue"], async (ctx) => {
     inlineKeyboard = new InlineKeyboard().text(
       "Получить ответ",
       JSON.stringify({
-        type: thema,
-        questionId: question.id,
+        type: question?.type,
+        questionId: question?.id,
       })
     );
   }
   await ctx.reply(
-    `Вопрос по категории <b>${ctx.message.text}</b>:\n\n${question.text}`,
-    { reply_markup: inlineKeyboard, parse_mode: "HTML" }
+    `Вопрос по категории ${ctx.message.text}:\n\n${question?.text}`,
+    { reply_markup: inlineKeyboard }
   );
 });
 // ------
 
 //отсеживание нажатия на инлайн кнопки
 bot.on("callback_query:data", async (ctx) => {
-  if (ctx.callbackQuery.data === "cancel") {
-    ctx.reply("Отменено");
-    await ctx.answerCallbackQuery(); // remove loading animation
-    return;
-  } else {
-    const cbData = JSON.parse(ctx.callbackQuery.data);
-    ctx.reply(`${cbData.type} составляющая фронтенда`);
-    await ctx.answerCallbackQuery();
-  }
+    const cbData = JSON.parse(ctx.callbackQuery.data)
+    const correctAnswer = getCorrectAnswer(cbData.questionId, cbData.type)
+    
+    if(cbData.type.includes('option')) {
+        if(cbData.isCorrect) {
+            await ctx.reply("Верно 👍")
+        } else {
+            await ctx.reply(`Не верно ❌\nПравильный ответ:\n\n"${correctAnswer}"` )
+        }
+    } else {
+        await ctx.reply(correctAnswer, {parse_mode: 'HTML', disable_web_page_preview: true} )
+    }
+    await ctx.answerCallbackQuery()
 });
 // -----------------
 
