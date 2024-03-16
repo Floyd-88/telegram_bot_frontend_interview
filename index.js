@@ -33,7 +33,7 @@ bot.command("start", async (ctx) => {
 // ----------
 
 //выбор кнопки с темой
-bot.hears(["HTML", "CSS", "JavaScript", "Vue"], async (ctx) => {
+bot.hears(["HTML", "CSS", "JavaScript", "Vue", "Случайный вопрос"], async (ctx) => {
   const question = getRandomQuestions(ctx);
   let inlineKeyboard;
   //если вопрос с вариантами ответов - отразить их
@@ -58,7 +58,7 @@ bot.hears(["HTML", "CSS", "JavaScript", "Vue"], async (ctx) => {
     );
   }
   await ctx.reply(
-    `Вопрос по категории ${ctx.message.text}:\n\n${question?.text}`,
+    `Вопрос по категории ${question?.type}:\n\n${question?.text}`,
     { reply_markup: inlineKeyboard }
   );
 });
@@ -76,7 +76,7 @@ bot.on("callback_query:data", async (ctx) => {
             await ctx.reply(`Не верно ❌\nПравильный ответ:\n\n"${correctAnswer}"` )
         }
     } else {
-        await ctx.reply(correctAnswer, {parse_mode: 'HTML', disable_web_page_preview: true} )
+        await ctx.reply(correctAnswer, {disable_web_page_preview: true} )
     }
     await ctx.answerCallbackQuery()
 });

@@ -1,10 +1,13 @@
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const questions = require('./questions.json');
-// let randomIndex;
 
 export const getRandomQuestions = (ctx) => {
-    const thema = ctx.message.text.toLowerCase();
+    let thema = ctx.message.text.toLowerCase();
+
+    if(thema === "случайный вопрос") {
+        thema = randomProperty(questions)
+    }
     const arrayThema = questions[thema]
     const random = Math.floor(Math.random() * arrayThema.length) 
    
@@ -13,6 +16,7 @@ export const getRandomQuestions = (ctx) => {
     } else {
         ctx.session.randomIndex = random
     }
+    arrayThema[random]['type'] = thema
     return arrayThema[random]
 }
 
@@ -26,3 +30,8 @@ export const getCorrectAnswer = (id, type) => {
         return correct_answer['text']
     }
 }
+
+const randomProperty = function (obj) {
+    let keys = Object.keys(obj);
+    return keys[ keys.length * Math.random() << 0]
+};
