@@ -1,13 +1,20 @@
 import "dotenv/config";
-import { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, session } from "grammy";
+import {
+  Bot,
+  GrammyError,
+  HttpError,
+  Keyboard,
+  InlineKeyboard,
+  session,
+} from "grammy";
 import { getRandomQuestions, getCorrectAnswer } from "./utils.js";
 const bot = new Bot(process.env.BOT_API_KEY);
 
 function initial() {
-    return { randomIndex: null };
-  }
+  return { randomIndex: null };
+}
 
-  bot.use(session({ initial }));
+bot.use(session({ initial }));
 
 //событие срабатывает при старте бота
 bot.command("start", async (ctx) => {
@@ -33,52 +40,69 @@ bot.command("start", async (ctx) => {
 // ----------
 
 //выбор кнопки с темой
-bot.hears(["HTML", "CSS", "JavaScript", "Vue", "Случайный вопрос"], async (ctx) => {
-  const question = getRandomQuestions(ctx);
-  let inlineKeyboard;
-  //если вопрос с вариантами ответов - отразить их
-  if (question?.hasOptions) {
-    const buttonRow = question.options.map((i) => InlineKeyboard.text(
+bot.hears(
+  ["HTML", "CSS", "JavaScript", "Vue", "Случайный вопрос"],
+  async (ctx) => {
+    const question = getRandomQuestions(ctx);
+    let inlineKeyboard;
+    //если вопрос с вариантами ответов - отразить их
+    if (question?.hasOptions) {
+      const buttonRow = question.options.map((i) =>
+        InlineKeyboard.text(
           i.text,
           JSON.stringify({
             type: `${question?.type}-option`,
             questionId: question?.id,
             isCorrect: i.isCorrect,
           })
-        ),
-    );
-    inlineKeyboard = InlineKeyboard.from([buttonRow]);
-  } else { //если вопрос без вариантов - отразить кнопку "получить ответ"
-    inlineKeyboard = new InlineKeyboard().text(
-      "Получить ответ",
-      JSON.stringify({
-        type: question?.type,
-        questionId: question?.id,
-      })
+        )
+      );
+      inlineKeyboard = InlineKeyboard.from([buttonRow]);
+    } else {
+      //если вопрос без вариантов - отразить кнопку "получить ответ"
+      inlineKeyboard = new InlineKeyboard().text(
+        "Получить ответ",
+        JSON.stringify({
+          type: question?.type,
+          questionId: question?.id,
+        })
+      );
+    }
+    await ctx.reply(
+      `Вопрос по категории ${question?.type}:\n\n${question?.text}`,
+      { reply_markup: inlineKeyboard }
     );
   }
-  await ctx.reply(
-    `Вопрос по категории ${question?.type}:\n\n${question?.text}`,
-    { reply_markup: inlineKeyboard }
-  );
-});
+);
 // ------
 
 //отсеживание нажатия на инлайн кнопки
 bot.on("callback_query:data", async (ctx) => {
-    const cbData = JSON.parse(ctx.callbackQuery.data)
-    const correctAnswer = getCorrectAnswer(cbData.questionId, cbData.type)
-    
-    if(cbData.type.includes('option')) {
-        if(cbData.isCorrect) {
-            await ctx.reply("Верно 👍")
-        } else {
-            await ctx.reply(`Не верно ❌\nПравильный ответ:\n\n"${correctAnswer}"` )
-        }
+  const cbData = JSON.parse(ctx.callbackQuery.data);
+  const correctAnswer = getCorrectAnswer(cbData.questionId, cbData.type);
+
+  if (cbData.type.includes("option")) {
+    if (cbData.isCorrect) {
+      await ctx.reply("Верно 👍");
     } else {
-        await ctx.reply(correctAnswer, {disable_web_page_preview: true} )
+      await ctx.reply(`Не верно ❌\nПравильный ответ:\n\n"${correctAnswer}"`);
     }
-    await ctx.answerCallbackQuery()
+  } else {
+    await ctx.reply(correctAnswer, { disable_web_page_preview: true });
+  }
+  await ctx.answerCallbackQuery();
+});
+// -----------------
+
+//если пользователь ввел какой ни будь тект
+bot.on("message", async (ctx) => {
+  console.log(ctx.message);
+  const chatId = ctx.chat.id;
+  bot.api.sendMessage(
+    chatId,
+    `Такой команды не найдено!!!\n\n` +
+      `"Что бы проверить свои знания, введите /start"`
+  );
 });
 // -----------------
 
